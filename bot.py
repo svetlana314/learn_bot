@@ -10,12 +10,16 @@ PROXY = {'proxy_url': settings.PROXY_URL,
 
 def greet_user(update, context):
     print("Вызван \start")
-    update.message.reply_text('Дратути!')
+    name = update.message.from_user.first_name
+    update.message.reply_text("Дратути, " + name + "!")
 
 def talk_to_me(update, context):
     text = update.message.text
     print(text)
-    update.message.reply_text(text)
+    if (text == "Дурак") or (text == "дурак"):
+        update.message.reply_text("Сам дурак")
+    else:
+        update.message.reply_text(text)
 
 def main():
     mybot = Updater(settings.API_KEY, use_context=True, request_kwargs=PROXY)
