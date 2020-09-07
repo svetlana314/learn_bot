@@ -9,7 +9,7 @@ PROXY = {'proxy_url': settings.PROXY_URL,
     'urllib3_proxy_kwargs': {'username': settings.PROXY_USERNAME, 'password': settings.PROXY_PASSWORD}}
 
 def greet_user(update, context):
-    print("Вызван \start")
+    print("Вызван /start")
     name = update.message.from_user.first_name
     update.message.reply_text("Дратути, " + name + "!")
 
