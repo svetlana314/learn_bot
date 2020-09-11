@@ -16,15 +16,15 @@ def greet_user(update, context):
     update.message.reply_text("Дратути, " + name + "!")
 
 def talk_to_me(update, context):
-    text = update.message.text
+    text = update.message.text.lower()
     print('повторялка')
     print(text)
-    if (text == "Дурак") or (text == "дурак"):
+    if text == "дурак":
         update.message.reply_text("Сам дурак")
     else:
         update.message.reply_text(text)
 
-def constellation(update, context):
+def planet(update, context):
     try:
         text = update.message.text.split()[1].lower()
         print('планета')
@@ -71,9 +71,9 @@ def main():
 
     dp = mybot.dispatcher
     dp.add_handler(CommandHandler("start", greet_user))
-    dp.add_handler(CommandHandler("planet",constellation))
+    dp.add_handler(CommandHandler("planet",planet))
     dp.add_handler(MessageHandler(Filters.text, talk_to_me))
-    dp.add_handler(MessageHandler(Filters.text, constellation))
+    dp.add_handler(MessageHandler(Filters.text, planet))
 
     logging.info("Bot has started")
     mybot.start_polling()
