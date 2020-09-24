@@ -14,14 +14,14 @@ PROXY = {'proxy_url': settings.PROXY_URL,
 def greet_user(update, context):
     print("Вызван /start")
     name = update.message.from_user.first_name
-    update.message.reply_text("Дратути, " + name + "!")
+    update.message.reply_text("Hello, " + name + "!")
 
 def talk_to_me(update, context):
     text = update.message.text.lower()
     print('повторялка')
     print(text)
-    if text == "дурак":
-        update.message.reply_text("Сам дурак")
+    if text == "fool":
+        update.message.reply_text("You're fool!")
     else:
         update.message.reply_text(text)
 
@@ -100,111 +100,122 @@ def full_moon(update, context):
     except IndexError:
         update.message.reply_text('You did not enter a date.')
 
+def played(user_data):
+    if 'cities_used' not in user_data:
+        user_data['cities_used'] = []
+    return user_data['cities_used']
 
-def cities_game(update, context):
-
-    def played(user_data):
-        if 'cities_used' not in user_data:
-            user_data['cities_used'] = []
-        return user_data['cities_used']
-
-    def my_city_base(user_data):
-        if 'my_cities' not in user_data:
-            user_data['my_cities'] = []
-            with open('cities.txt', 'r', encoding='utf-8') as cities:
-                for line in cities:
-                    user_data['my_cities'].append(line.replace('\n',''))
-        return user_data['my_cities']
-
-    def last_city_used(user_data):
-        if 'last_answer' not in user_data:
-            user_data['last_answer'] = ''
-        return user_data['last_answer']
-
-    def is_in_russian(city):
-        city = city.replace(' ', '')
-        result = True
-        for letter in city:
-            if not bool(re.search('[-а-яА-Я]', letter)):
-                result = False
-                break
-        return result
-
-    def last_letter(city):
-        city = city.lower().replace(' ', '')
-        for letter in reversed(city):
-            if letter != "ь" and letter != "ъ" and letter != "ы" and letter != "ё":
-                return(letter)
-            
-    def answer(entered_city):
-        for city in context.user_data['my_cities']:
-            if city.lower()[0] == last_letter(entered_city):
-                context.user_data['last_answer'] = city
-                break
-            else:
-                context.user_data['last_answer'] = ''
-        if context.user_data['last_answer']:
-            check_my_base(entered_city)                                                         #если введенный пользоватедем город есть в моей базе, удаляю его
-            context.user_data['my_cities'].remove(context.user_data['last_answer'])             #удаляю свой ответ из моей базы
-            context.user_data['cities_used'].append(entered_city)                               #добавляю введенный пользователем город в список использованных
-            context.user_data['cities_used'].append(context.user_data['last_answer'])           #добавляю свой ответ в список использованных
-            update.message.reply_text(f'{context.user_data["last_answer"]}. Ваш ход.')          #вывожу свой ответ
-        else:
-            update.message.reply_text('Поздравляю. Вы выйграли!')                               #ответа нет
-            delete_data()                                           
-
-    def check_my_base(entered_city):
-        for city in context.user_data['my_cities']:
-            if city.lower().replace(' ','') == entered_city.lower().replace(' ',''):
-                context.user_data['my_cities'].remove(city)
-                break
-
-    def already_used(entered_city):
-        is_used = False
-        for city in context.user_data['cities_used']:
-            if city.lower().replace(' ','') == entered_city.lower().replace(' ',''):
-                is_used = True
-                break
-        return is_used
-
-    def delete_data():
-        context.user_data['cities_used'] = []   #удаляем список исрользованных городов
-        context.user_data['my_cities'] = []     #заново заполняем базу своих городов
-        context.user_data['last_answer'] = ''
+def my_city_base(user_data):
+    if 'my_cities' not in user_data:
+        user_data['my_cities'] = []
         with open('cities.txt', 'r', encoding='utf-8') as cities:
             for line in cities:
-                context.user_data['my_cities'].append(line.replace('\n',''))
+                user_data['my_cities'].append(line.replace('\n',''))
+    return user_data['my_cities']
 
+def last_city_used(user_data):
+    if 'last_answer' not in user_data:
+        user_data['last_answer'] = ''
+    return user_data['last_answer']
+
+def is_in_english(update, context, city):
+    city = city.replace(' ', '')
+    result = True
+    for letter in city:
+        if not bool(re.search('[-a-zA-Z]', letter)):
+            update.message.reply_text('It should be in English.')
+            result = False
+            break
+    return result
+
+def refresh_data(context, user_city, my_answer):
+    context.user_data['last_answer'] = my_answer #remember my answer
+    context.user_data['cities_used'].append(user_city) # add user's city to used cities base
+    context.user_data['cities_used'].append(my_answer) # add my answer to used cities base
+    context.user_data['my_cities'].remove(my_answer) # delete my answer from base
+    delete_from_my_base(context, user_city) # delete user's city from my base
+
+def delete_from_my_base(context, user_city):
+    for city in context.user_data['my_cities']:
+        if city.lower().replace(' ','') == user_city.lower().replace(' ',''):
+            context.user_data['my_cities'].remove(city)
+            break
+
+def give_my_answer(update, context, user_city):
+    my_answer = ''
+    for city in context.user_data['my_cities']:
+        if user_city.lower()[-1] == city.lower()[0]:
+            my_answer = city
+            update.message.reply_text(f'{my_answer}, your turn.') # print my answer
+            refresh_data(context, user_city, my_answer)
+            break
+    if not my_answer: # if I don't have an answer
+        update.message.reply_text('Congratulations! You won!')
+        delete_data(context) # delete all used cities from base, refresh my city base        
+
+def already_used(update, context, entered_city):
+    is_used = False
+    for city in context.user_data['cities_used']:
+        if city.lower().replace(' ','') == entered_city.lower().replace(' ',''):
+            is_used = True
+            update.message.reply_text(
+f'''This city was already used in the game.
+If you surrender, enter: I surrender.
+'''
+) 
+            break
+    return is_used
+
+def delete_data(context):
+    context.user_data['cities_used'] = []   # delete all cities from used
+    context.user_data['my_cities'] = []     # delete all citied from my base
+    context.user_data['last_answer'] = ''   # delete my last answer
+    with open('cities.txt', 'r', encoding='utf-8') as cities: # refresh my city base
+        for line in cities:
+            context.user_data['my_cities'].append(line.replace('\n',''))
+
+def surrender_cheking(update, context, user_text):
+    if user_text.lower().replace(' ','') == 'isurrender':
+        update.message.reply_text('I won!')
+        delete_data(context)
+        return True
+    else:
+        return False
+
+
+def rules_are_satisfied(update, context, user_text):
+    my_city = context.user_data['last_answer'] # if I didn't answer before it's empty
+    if not already_used(update, context, user_text):
+        if my_city: # if I answered before I check rules
+            if user_text.lower()[0] == my_city.lower()[-1]:
+                return True
+            else:
+                update.message.reply_text(
+f'''You should enter a city starting with {my_city.upper()[-1]}.
+If you surrender, enter: I surrender.
+'''
+)
+                return False # rules are not met
+        else:
+            return True # if I didn't answer before I don't check rules
+    else:
+        return False # if city was used before
+
+def cities_game(update, context):
     text = update.message.text.replace('/cities','').strip()
     print("города")
     print(text)
-
-    if text:
-        if text.lower().replace(' ','') != 'ясдаюсь':
-            context.user_data['cities_used'] = played(context.user_data)    #использованные города
-            context.user_data['my_cities'] = my_city_base(context.user_data)    #база моих городов
-            context.user_data['last_answer'] = last_city_used(context.user_data)    #последний ответ
-            
-            if is_in_russian(text):                                                                         #введенный город на русском
-                if context.user_data['last_answer']:                                                        #отвечал ли я ранее
-                    if last_letter(context.user_data['last_answer']) == text.lower()[0]:                    #проверяю введеный город
-                        if already_used(text):                                                              #проверяю использовался ли ранее город
-                            update.message.reply_text('''Этот город уже использовали в игре.
-Если Вы сдаётесь, введите: Я сдаюсь.''')
-                        else:
-                            answer(text)
-                    else:
-                        update.message.reply_text(f'''Вы должны ввести город на букву {last_letter(context.user_data["last_answer"]).upper()}.
-Если Вы сдаётесь, введите: Я сдаюсь.''')                
-                else:
-                    answer(text)                                                                      
-            else:
-                update.message.reply_text('Название города должно быть на русском языке.')
-        else:
-            update.message.reply_text('Я победил!')
-            delete_data()
-    else:
-        update.message.reply_text('Вы не ввели город.')    
+    context.user_data['cities_used'] = played(context.user_data)    # already used citied
+    context.user_data['my_cities'] = my_city_base(context.user_data)    # my city base
+    context.user_data['last_answer'] = last_city_used(context.user_data)    # last answer
+    
+    try:
+        if is_in_english(update, context, text):
+            if not surrender_cheking(update, context, text): # check if user surrender
+                if rules_are_satisfied(update, context, text): 
+                    give_my_answer(update, context, text)
+    except IndexError:
+        update.message.reply_text('You did not enter a city.')    
 
 def main():
     mybot = Updater(settings.API_KEY, use_context=True, request_kwargs=PROXY)
@@ -217,10 +228,6 @@ def main():
     dp.add_handler(CommandHandler("cities", cities_game))
 
     dp.add_handler(MessageHandler(Filters.text, talk_to_me))
-    dp.add_handler(MessageHandler(Filters.text, planet))
-    dp.add_handler(MessageHandler(Filters.text, count))
-    dp.add_handler(MessageHandler(Filters.text, full_moon))
-    dp.add_handler(MessageHandler(Filters.text, cities_game))
 
     logging.info("Bot has started")
     mybot.start_polling()
